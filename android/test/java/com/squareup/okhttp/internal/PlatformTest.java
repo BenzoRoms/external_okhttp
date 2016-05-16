@@ -31,6 +31,7 @@ import java.util.Arrays;
 import java.util.List;
 import javax.net.ssl.HandshakeCompletedListener;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
@@ -65,6 +66,7 @@ public class PlatformTest {
     assertTrue(openSslSocket.useSessionTickets);
     assertEquals("host", openSslSocket.hostname);
     assertArrayEquals(Platform.concatLengthPrefixed(protocols), openSslSocket.alpnProtocols);
+    assertEquals("HTTPS", openSslSocket.endpointIdentificationAlgorithm);
   }
 
   @Test
@@ -125,6 +127,7 @@ public class PlatformTest {
     private boolean useSessionTickets;
     private String hostname;
     private byte[] alpnProtocols;
+    private String endpointIdentificationAlgorithm;
 
     public FullOpenSSLSocketImpl() throws IOException {
       super(null);
@@ -148,6 +151,18 @@ public class PlatformTest {
     @Override
     public byte[] getAlpnSelectedProtocol() {
       return alpnProtocols;
+    }
+
+    @Override
+    public SSLParameters getSSLParameters() {
+      SSLParameters sslParameters = new SSLParameters();
+      sslParameters.setEndpointIdentificationAlgorithm(endpointIdentificationAlgorithm);
+      return sslParameters;
+    }
+
+    @Override
+    public void setSSLParameters(SSLParameters sslParameters) {
+      this.endpointIdentificationAlgorithm = sslParameters.getEndpointIdentificationAlgorithm();
     }
   }
 
