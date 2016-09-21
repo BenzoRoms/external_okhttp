@@ -109,10 +109,17 @@ public final class URLConnectionTest {
   private OkUrlFactory client;
   private HttpURLConnection connection;
   private Cache cache;
+  private String originalHttpNonProxyHosts;
+  private String originalHttpsNonProxyHosts;
 
   @Before public void setUp() throws Exception {
     server.setProtocolNegotiationEnabled(false);
     client = new OkUrlFactory(new OkHttpClient());
+
+    // If these are not exactly equal to the empty string then the default value is appended.
+    // If they are null then the default value is used.
+    originalHttpNonProxyHosts = System.setProperty("http.nonProxyHosts", "");
+    originalHttpsNonProxyHosts = System.setProperty("https.nonProxyHosts", "");
   }
 
   @After public void tearDown() throws Exception {
@@ -122,10 +129,21 @@ public final class URLConnectionTest {
     System.clearProperty("http.agent");
     System.clearProperty("http.proxyHost");
     System.clearProperty("http.proxyPort");
+    setOrClearSystemProperty("http.nonProxyHosts", originalHttpNonProxyHosts);
     System.clearProperty("https.proxyHost");
     System.clearProperty("https.proxyPort");
+    setOrClearSystemProperty("https.nonProxyHosts", originalHttpsNonProxyHosts);
     if (cache != null) {
       cache.delete();
+    }
+  }
+
+  /** Will clear property if {@code value} is {@code null} otherwise sets to {@code value}. */
+  private static void setOrClearSystemProperty(String key, String value) {
+    if (value == null) {
+      System.clearProperty(key);
+    } else {
+      System.setProperty(key, value);
     }
   }
 
@@ -860,7 +878,7 @@ public final class URLConnectionTest {
         new MockResponse().setSocketPolicy(SocketPolicy.UPGRADE_TO_SSL_AT_END).clearHeaders());
     server.enqueue(new MockResponse().setBody("this response comes via a secure proxy"));
 
-    URL url = new URL("https://android.com/foo");
+    URL url = new URL("https://localhost/foo");
     client.client().setSslSocketFactory(sslContext.getSocketFactory());
     client.client().setHostnameVerifier(hostnameVerifier);
     connection = proxyConfig.connect(server, client, url);
@@ -868,14 +886,14 @@ public final class URLConnectionTest {
     assertContent("this response comes via a secure proxy", connection);
 
     RecordedRequest connect = server.takeRequest();
-    assertEquals("Connect line failure on proxy", "CONNECT android.com:443 HTTP/1.1",
+    assertEquals("Connect line failure on proxy", "CONNECT localhost:443 HTTP/1.1",
         connect.getRequestLine());
-    assertEquals("android.com", connect.getHeader("Host"));
+    assertEquals("localhost", connect.getHeader("Host"));
 
     RecordedRequest get = server.takeRequest();
     assertEquals("GET /foo HTTP/1.1", get.getRequestLine());
-    assertEquals("android.com", get.getHeader("Host"));
-    assertEquals(Arrays.asList("verify android.com"), hostnameVerifier.calls);
+    assertEquals("localhost", get.getHeader("Host"));
+    assertEquals(Arrays.asList("verify localhost"), hostnameVerifier.calls);
   }
 
   /** Tolerate bad https proxy response when using HttpResponseCache. Android bug 6754912. */
@@ -898,13 +916,13 @@ public final class URLConnectionTest {
     client.client().setHostnameVerifier(new RecordingHostnameVerifier());
     client.client().setProxy(server.toProxyAddress());
 
-    URL url = new URL("https://android.com/foo");
+    URL url = new URL("https://localhost/foo");
     connection = client.open(url);
     assertContent("response", connection);
 
     RecordedRequest connect = server.takeRequest();
-    assertEquals("CONNECT android.com:443 HTTP/1.1", connect.getRequestLine());
-    assertEquals("android.com", connect.getHeader("Host"));
+    assertEquals("CONNECT localhost:443 HTTP/1.1", connect.getRequestLine());
+    assertEquals("localhost", connect.getHeader("Host"));
   }
 
   private void initResponseCache() throws IOException {
@@ -924,7 +942,7 @@ public final class URLConnectionTest {
 
     client.client().setProxy(server.toProxyAddress());
 
-    URL url = new URL("https://android.com/foo");
+    URL url = new URL("https://localhost/foo");
     client.client().setSslSocketFactory(sslContext.getSocketFactory());
     client.client().setHostnameVerifier(hostnameVerifier);
     connection = client.open(url);
@@ -937,12 +955,12 @@ public final class URLConnectionTest {
     assertNull(connect.getHeader("Private"));
     assertNull(connect.getHeader("Proxy-Authorization"));
     assertEquals(Version.userAgent(), connect.getHeader("User-Agent"));
-    assertEquals("android.com", connect.getHeader("Host"));
+    assertEquals("localhost", connect.getHeader("Host"));
     assertEquals("Keep-Alive", connect.getHeader("Proxy-Connection"));
 
     RecordedRequest get = server.takeRequest();
     assertEquals("Secret", get.getHeader("Private"));
-    assertEquals(Arrays.asList("verify android.com"), hostnameVerifier.calls);
+    assertEquals(Arrays.asList("verify localhost"), hostnameVerifier.calls);
   }
 
   @Test public void proxyAuthenticateOnConnect() throws Exception {
@@ -956,18 +974,18 @@ public final class URLConnectionTest {
 
     client.client().setProxy(server.toProxyAddress());
 
-    URL url = new URL("https://android.com/foo");
+    URL url = new URL("https://localhost/foo");
     client.client().setSslSocketFactory(sslContext.getSocketFactory());
     client.client().setHostnameVerifier(new RecordingHostnameVerifier());
     connection = client.open(url);
     assertContent("A", connection);
 
     RecordedRequest connect1 = server.takeRequest();
-    assertEquals("CONNECT android.com:443 HTTP/1.1", connect1.getRequestLine());
+    assertEquals("CONNECT localhost:443 HTTP/1.1", connect1.getRequestLine());
     assertNull(connect1.getHeader("Proxy-Authorization"));
 
     RecordedRequest connect2 = server.takeRequest();
-    assertEquals("CONNECT android.com:443 HTTP/1.1", connect2.getRequestLine());
+    assertEquals("CONNECT localhost:443 HTTP/1.1", connect2.getRequestLine());
     assertEquals("Basic " + RecordingAuthenticator.BASE_64_CREDENTIALS,
         connect2.getHeader("Proxy-Authorization"));
 
@@ -986,7 +1004,7 @@ public final class URLConnectionTest {
 
     client.client().setProxy(server.toProxyAddress());
 
-    URL url = new URL("https://android.com/foo");
+    URL url = new URL("https://localhost/foo");
     client.client().setSslSocketFactory(sslContext.getSocketFactory());
     client.client().setHostnameVerifier(new RecordingHostnameVerifier());
     connection = client.open(url);
@@ -1007,7 +1025,7 @@ public final class URLConnectionTest {
 
     client.client().setProxy(server.toProxyAddress());
 
-    URL url = new URL("https://android.com/foo");
+    URL url = new URL("https://localhost/foo");
     client.client().setSslSocketFactory(socketFactory);
     client.client().setHostnameVerifier(hostnameVerifier);
     assertContent("response 1", client.open(url));

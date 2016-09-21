@@ -2043,7 +2043,7 @@ public final class CallTest {
     client.setHostnameVerifier(hostnameVerifier);
 
     Request request = new Request.Builder()
-        .url("https://android.com/foo")
+        .url("https://localhost/foo")
         .header("Private", "Secret")
         .header("User-Agent", "App 1.0")
         .build();
@@ -2054,13 +2054,13 @@ public final class CallTest {
     assertNull(connect.getHeader("Private"));
     assertEquals(Version.userAgent(), connect.getHeader("User-Agent"));
     assertEquals("Keep-Alive", connect.getHeader("Proxy-Connection"));
-    assertEquals("android.com", connect.getHeader("Host"));
+    assertEquals("localhost", connect.getHeader("Host"));
 
     RecordedRequest get = server.takeRequest();
     assertEquals("Secret", get.getHeader("Private"));
     assertEquals("App 1.0", get.getHeader("User-Agent"));
 
-    assertEquals(Arrays.asList("verify android.com"), hostnameVerifier.calls);
+    assertEquals(Arrays.asList("verify localhost"), hostnameVerifier.calls);
   }
 
   /** Respond to a proxy authorization challenge. */
@@ -2081,17 +2081,17 @@ public final class CallTest {
     client.setHostnameVerifier(new RecordingHostnameVerifier());
 
     Request request = new Request.Builder()
-        .url("https://android.com/foo")
+        .url("https://localhost/foo")
         .build();
     Response response = client.newCall(request).execute();
     assertEquals("response body", response.body().string());
 
     RecordedRequest connect1 = server.takeRequest();
-    assertEquals("CONNECT android.com:443 HTTP/1.1", connect1.getRequestLine());
+    assertEquals("CONNECT localhost:443 HTTP/1.1", connect1.getRequestLine());
     assertNull(connect1.getHeader("Proxy-Authorization"));
 
     RecordedRequest connect2 = server.takeRequest();
-    assertEquals("CONNECT android.com:443 HTTP/1.1", connect2.getRequestLine());
+    assertEquals("CONNECT localhost:443 HTTP/1.1", connect2.getRequestLine());
     assertEquals("password", connect2.getHeader("Proxy-Authorization"));
 
     RecordedRequest get = server.takeRequest();
@@ -2117,7 +2117,7 @@ public final class CallTest {
     client.setHostnameVerifier(new RecordingHostnameVerifier());
 
     Request request = new Request.Builder()
-        .url("https://android.com/foo")
+        .url("https://localhost/foo")
         .header("Proxy-Authorization", "password")
         .build();
     Response response = client.newCall(request).execute();
